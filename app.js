@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const parseurl = require('parseurl');
 const Activities = require('./models/activities');
+const Users = require('./models/users');
 const passport = require("passport");
 const BasicStrategy = require("passport-http").BasicStrategy;
 
@@ -60,7 +61,7 @@ app.get('/api/activities/:id', function(req, res) {
 app.put('/api/activities/:id', function(req, res) {
   var id = req.params.id;
  Activities.findOne({_id: id}).then(function(result) {
-    
+
  });
 });
 
@@ -93,3 +94,10 @@ app.listen(3000, function() {
 // });
 //
 // activity.save();
+
+const user = new Users({
+  username: 'Matthew',
+  password: '1234'
+});
+
+user.save();
