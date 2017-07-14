@@ -18,7 +18,7 @@ app.use(bodyParser.urlencoded({extended: false}));
 
 passport.use(new BasicStrategy(
   function(username, password, done) {
-    User.findOne({username: username, password: password}).then(function(user) {
+    Users.findOne({username: username, password: password}).then(function(user) {
       if(!user) {
         return done(null, false);
       } else {
@@ -27,6 +27,11 @@ passport.use(new BasicStrategy(
     });
   }
 ));
+
+app.use(function(req, res, next) {
+  passport.authenticate('basic', {session: false});
+  next();
+});
 
 // REQUESTS
 
@@ -57,22 +62,38 @@ app.get('/api/activities/:id', function(req, res) {
  });
 });
 
-// update one activity I am tracking, changing attributes. Tracked data cant be changed
-app.put('/api/activities/:id', function(req, res) {
+// update one activity I am tracking, changing attributes. But since tracked data cant be changed, I changed this to a patch instead of a put
+app.patch('/api/activities/:id', function(req, res) {
   var id = req.params.id;
+  var newActivity = req.body.activity;
+  var msg = '';
  Activities.findOne({_id: id}).then(function(result) {
-
+   if (req.body.activity) {
+     result.activityName = newActivity;
+     result.save();
+     res.json(result);
+   } else {
+     msg = 'Please submit a new activity';
+     res.status(404).json(msg);
+   }
  });
 });
 
 // delete an activity that Im tracking... removes all tracked data as well
 app.delete('/api/activites/:id', function(req, res) {
-
+  Activities.deleteOne({_id: id}).then(function() {
+    res.json({});
+  });
 });
 
 // Add tracked data for a day, should include the day tracked, and if the day is the same, you can override the previous data--upsert
 app.post('/api/activities/:id/stats', function(req, res) {
+  var id = req.params.id;
+  var newDate = req.body.data.date;
 
+  Activities.findOneAndUpdate({_id: id}, {data: [{date: }]}).then(function(req, res) {
+
+  });
 });
 
 // remove tracked data for a day
@@ -95,9 +116,9 @@ app.listen(3000, function() {
 //
 // activity.save();
 
-const user = new Users({
-  username: 'Matthew',
-  password: '1234'
-});
-
-user.save();
+// const user = new Users({
+//   username: 'Matthew',
+//   password: '1234'
+// });
+//
+// user.save();
