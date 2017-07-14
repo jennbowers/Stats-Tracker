@@ -36,7 +36,7 @@ app.use(function(req, res, next) {
 // REQUESTS
 
 // show a list of all the activities I am tracking, and links to their pages
-app.get('/api/activities', function(req, res) {
+app.get('/api/activities', passport.authenticate('basic', {session: false}), function(req, res) {
   Activities.find({}).then(function(results) {
     res.json(results);
   });
@@ -44,7 +44,7 @@ app.get('/api/activities', function(req, res) {
 
 // create a new activity to track
 // in an application with a front end I would name the req.
-app.post('/api/activities', function(req, res) {
+app.post('/api/activities', passport.authenticate('basic', {session: false}), function(req, res) {
   const activity = new Activities({
     activityName: req.body.activityName
   }).save().then(function(result) {
@@ -58,7 +58,7 @@ app.post('/api/activities', function(req, res) {
 });
 
 // show information about one activity that I am tracking, and give me the data I have recorded for that activity
-app.get('/api/activities/:id', function(req, res) {
+app.get('/api/activities/:id', passport.authenticate('basic', {session: false}), function(req, res) {
   var id = req.params.id;
  Activities.findOne({_id: id}).then(function(result) {
     res.json(result);
@@ -66,7 +66,7 @@ app.get('/api/activities/:id', function(req, res) {
 });
 
 // update one activity I am tracking, changing attributes. But since tracked data cant be changed, I changed this to a patch instead of a put
-app.patch('/api/activities/:id', function(req, res) {
+app.patch('/api/activities/:id', passport.authenticate('basic', {session: false}), function(req, res) {
   var id = req.params.id;
   var newActivity = req.body.activityName;
   var msg = '';
@@ -83,7 +83,7 @@ app.patch('/api/activities/:id', function(req, res) {
 });
 
 // delete an activity that Im tracking... removes all tracked data as well
-app.delete('/api/activities/:id', function(req, res) {
+app.delete('/api/activities/:id', passport.authenticate('basic', {session: false}), function(req, res) {
   var id = req.params.id;
   Activities.deleteOne({_id: id}).then(function() {
     res.json({});
@@ -91,35 +91,48 @@ app.delete('/api/activities/:id', function(req, res) {
 });
 
 // Add tracked data for a day, should include the day tracked, and if the day is the same, you can override the previous data--upsert
-app.post('/api/activities/:id/stats', function(req, res) {
+app.post('/api/activities/:id/stats', passport.authenticate('basic', {session: false}), function(req, res) {
   var id = req.params.id;
-  var newDate = req.body.data[0].date;
-  var newAmount = req.body.data[0].amount;
+  var newDate = req.body.date;
+  var newDateObject = new Date(newDate);
+  var newAmount = req.body.amount;
 
-  Activities.findOneAndUpdate({_id: id}, {
-    data: [{
-      date: newDate, amount: newAmount
-    }]
-  }, {upsert: true}).then(function(item) {
-    res.json(item);
+  Activities.findOne({_id: id}).then(function(item) {
+    for(var i = 0; i < item.data.length; i++) {
+      var dbDate = item.data[i].date;
+      if (dbDate.getTime() === newDateObject.getTime()) {
+        console.log('working!');
+        item.data[i].amount = newAmount;
+        console.log('replaced amount ', item.data[i].amount);
+        item.save().then(function() {
+          res.json(item);
+        });
+        return;
+      } else {
+        console.log('not going to replace');
+        item.data.push({
+          date: newDate,
+          amount: newAmount
+        });
+        item.save().then(function(){
+          console.log('pushed and saved');
+          res.json({});
+        });
+        return;
+      }
+    }
   });
 });
 
 // remove tracked data for a day
-app.delete('/api/stats/:id', function(req, res) {
-  var id = req.body.id;
-  Activities.findOne({_id: id}).then(function(result) {
-    for(var i = 0; i < result.data.length; i++) {
-      if(result.data.length > 0) {
-        result.data.pop();
-      } else if (result.data.length === 0) {
-        return;
-      }
-    }
-    res.json({});
+app.delete('/api/stats/:id', passport.authenticate('basic', {session: false}), function(req, res) {
+  var id = req.params.id;
+  var dataId = req.body.dataId;
+  Activities.update({_id: id}, {$pull: {data: {_id: dataId}}}).then(function(result) {
+    res.json(result);
   });
-
 });
+
 
 app.listen(3000, function() {
   console.log('successfully initiated express application');
