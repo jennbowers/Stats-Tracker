@@ -43,15 +43,18 @@ app.get('/api/activities', function(req, res) {
 });
 
 // create a new activity to track
+// in an application with a front end I would name the req.
 app.post('/api/activities', function(req, res) {
   const activity = new Activities({
-    activityName: req.body.activity,
-    data: [{
-      date: req.body.date,
-      amount: req.body.amount
-    }]
-  }).save();
-  res.json({});
+    activityName: req.body.activityName
+  }).save().then(function(result) {
+    var data = {date: req.body.data[0].date, amount: req.body.data[0].amount};
+    result.data.push(data);
+    result.save().then(function() {
+      res.json({});
+    });
+  });
+
 });
 
 // show information about one activity that I am tracking, and give me the data I have recorded for that activity
@@ -65,11 +68,11 @@ app.get('/api/activities/:id', function(req, res) {
 // update one activity I am tracking, changing attributes. But since tracked data cant be changed, I changed this to a patch instead of a put
 app.patch('/api/activities/:id', function(req, res) {
   var id = req.params.id;
-  var newActivity = req.body.activity;
+  var newActivity = req.body.activityName;
   var msg = '';
  Activities.findOne({_id: id}).then(function(result) {
-   if (req.body.activity) {
-     result.activityName = newActivity;
+   if (req.body.activityName) {
+     result.activityName = req.body.activityName;
      result.save();
      res.json(result);
    } else {
@@ -80,7 +83,8 @@ app.patch('/api/activities/:id', function(req, res) {
 });
 
 // delete an activity that Im tracking... removes all tracked data as well
-app.delete('/api/activites/:id', function(req, res) {
+app.delete('/api/activities/:id', function(req, res) {
+  var id = req.params.id;
   Activities.deleteOne({_id: id}).then(function() {
     res.json({});
   });
@@ -89,15 +93,31 @@ app.delete('/api/activites/:id', function(req, res) {
 // Add tracked data for a day, should include the day tracked, and if the day is the same, you can override the previous data--upsert
 app.post('/api/activities/:id/stats', function(req, res) {
   var id = req.params.id;
-  var newDate = req.body.data.date;
+  var newDate = req.body.data[0].date;
+  var newAmount = req.body.data[0].amount;
 
-  Activities.findOneAndUpdate({_id: id}, {data: [{date: }]}).then(function(req, res) {
-
+  Activities.findOneAndUpdate({_id: id}, {
+    data: [{
+      date: newDate, amount: newAmount
+    }]
+  }, {upsert: true}).then(function(item) {
+    res.json(item);
   });
 });
 
 // remove tracked data for a day
 app.delete('/api/stats/:id', function(req, res) {
+  var id = req.body.id;
+  Activities.findOne({_id: id}).then(function(result) {
+    for(var i = 0; i < result.data.length; i++) {
+      if(result.data.length > 0) {
+        result.data.pop();
+      } else if (result.data.length === 0) {
+        return;
+      }
+    }
+    res.json({});
+  });
 
 });
 
